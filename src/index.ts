@@ -10,6 +10,7 @@ import socketHandler from "./socket";
 
 import tripRoutes from "./routes/Trip";
 import authRoutes from "./routes/Auth";
+import statusRoutes from "./routes/Status";
 
 const app = express();
 dotenv.config();

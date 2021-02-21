@@ -28,7 +28,7 @@ const tripSchema = new mongoose.Schema({
   customers: [customerSchema],
   hasEnded: {
     type: Boolean,
-    required: true,
+    default: false,
   },
 });
 

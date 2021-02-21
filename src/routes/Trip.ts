@@ -17,12 +17,14 @@ router.post("/", (req: Request, res: Response, next: NextFunction) => {
   // I split up drivers by city so the list becomes smaller
   const drivers = Driver.find({ city });
 
-  const driver = drivers[0];
+//   const driver = drivers[0];
 
   const trip = new Trip({
     driver,
     customers: [{ user, from, to }],
   });
+
+  //   res.status(200).json({})
 });
 
 router.post("/share", (req: Request, res: Response, next: NextFunction) => {
@@ -30,22 +32,28 @@ router.post("/share", (req: Request, res: Response, next: NextFunction) => {
 
   const city = getCityFromCoords(from);
 
+  const trip = Trip.find({"driver.currentLocation"})
+
   const drivers = Driver.find({ city });
 
   const driver = drivers[0];
+
+
 
   // If suitable trip is not found
   const trip = new Trip({
     driver,
     customers: [{ user, from, to }],
   });
+
+  // res.status(200).json({})
 });
 
 const getCityFromCoords = (coords: string) => {
   //Need to implement this
 };
 
-const getClosestDriver = (drivers: any[]) => {
+const getClosestDriver = (drivers: any[],coords:string) => {
   //Need to implement this
 };
 
