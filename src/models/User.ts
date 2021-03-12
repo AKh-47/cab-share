@@ -24,12 +24,24 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isLookingForshare: {
+    type: Boolean,
+    default: false,
+  },
   rating: {
     type: Number,
     required: true,
   },
   home: savedLocationSchema,
   savedLocations: [savedLocationSchema],
+  city: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  currentLocation: {
+    type: String,
+  },
 });
 
 export default mongoose.model<IUser>("User", userSchema);

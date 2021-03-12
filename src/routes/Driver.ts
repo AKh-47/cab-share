@@ -7,7 +7,7 @@ const router = express.Router();
 router.post(
   "/available",
   async (req: Request, res: Response, next: NextFunction) => {
-    const driver = await Driver.findById(req.body.driverId);
+    const driver = await Driver.findById(req.body.driverID);
     driver.isAvailable = !driver.isAvailable;
     driver.save();
   }
@@ -16,7 +16,7 @@ router.post(
 router.get(
   "/reviews",
   async (req: Request, res: Response, next: NextFunction) => {
-    const reviews = await Review.find({ for: req.body.driverId });
+    const reviews = await Review.find({ for: req.body.driverID });
   }
 );
 
