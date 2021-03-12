@@ -1,6 +1,18 @@
 import mongoose, { Document } from "mongoose";
 
-interface ITrip extends Document {}
+interface ICustomer {
+  user: mongoose.Schema.Types.ObjectId;
+  from: string;
+  to: string;
+  fare: number;
+}
+
+interface ITrip extends Document {
+  driver: mongoose.Schema.Types.ObjectId;
+  customers: ICustomer[];
+  hasEnded: boolean;
+  solo: boolean;
+}
 
 const customerSchema = new mongoose.Schema({
   user: {
@@ -29,6 +41,10 @@ const tripSchema = new mongoose.Schema({
   hasEnded: {
     type: Boolean,
     default: false,
+  },
+  solo: {
+    type: Boolean,
+    default: true,
   },
 });
 

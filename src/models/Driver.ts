@@ -6,6 +6,7 @@ interface IDriver extends Document {
   rating: number;
   isAvailable: boolean;
   currentLocation: boolean;
+  inTrip: boolean;
 }
 
 const cabSchema = new mongoose.Schema({
@@ -33,7 +34,13 @@ const driverSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  // IsAvailable if driver is willing to work
+  // inTrip if she is in a trip
   isAvailable: {
+    type: Boolean,
+    default: false,
+  },
+  inTrip: {
     type: Boolean,
     default: false,
   },
@@ -46,5 +53,9 @@ const driverSchema = new mongoose.Schema({
     index: true,
   },
 });
+
+// driverSchema.statics.toggleAvailability = function (id: string, callback: any) {
+//
+// };
 
 export default mongoose.model<IDriver>("Driver", driverSchema);

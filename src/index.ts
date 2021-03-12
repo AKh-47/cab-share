@@ -10,7 +10,9 @@ import socketHandler from "./socket";
 
 import tripRoutes from "./routes/Trip";
 import authRoutes from "./routes/Auth";
-import statusRoutes from "./routes/Status";
+
+import userRoutes from "./routes/User";
+import driverRoutes from "./routes/Driver";
 
 const app = express();
 dotenv.config();
@@ -29,5 +31,8 @@ const io = socketio(httpServer, {
 
 app.use("/trip", tripRoutes);
 app.use("/auth", authRoutes);
+
+app.use("/user", userRoutes);
+app.use("/driver", driverRoutes);
 
 io.on("connection", (socket: Socket) => socketHandler(socket, io));
