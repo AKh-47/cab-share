@@ -11,3 +11,6 @@ export default async (api: API, query: any) => {
 
 // https://developers.google.com/maps/documentation/distance-matrix/overview
 // https://developers.google.com/maps/documentation/directions/start
+
+// Google cloud is taking time to acknowledge that I have enabled billing, so the API isn't working yet,
+// I have used a basic function in src/config/utils.ts for now

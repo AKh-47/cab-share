@@ -24,48 +24,4 @@ export default (socket: Socket, io: any) => {
       throw err;
     }
   });
-
-  socket.on(
-    "looking-for-share",
-    (userID: string, from: string, to: string, people: string) => {
-      let best = 0;
-      const trips = Trip.find({
-        solo: false,
-        hasEnded: false,
-        "driver.city": city,
-      }).populate("driver", "cab currentLocation");
-
-      trips.map((trip) => {
-        if (trip.driver.cab.capcity - trip.customers.length >= people) {
-          let distBetweenEndpoints: number;
-
-          trip.customers.forEach((customer: any) => {
-            const dist = getDistanceBetweenCoords(customer.to, to);
-            if (dist > distBetweenEndpoints) {
-              distBetweenEndpoints = dist;
-            }
-          });
-
-          // const city = getCityFromCoords(from);
-          // const users = User.find({ isLookingForshare: true, city });
-          // Implement checking with other users locations before confirming trip
-
-          const distBetweenDriver = getDistanceBetweenCoords(
-            trip.driver.currentLocation,
-            from
-          );
-
-          // Simple algo which compares distances
-          // Can do a better job then this
-
-          best =
-            best > distBetweenDriver + distBetweenEndpoints
-              ? distBetweenDriver + distBetweenEndpoints
-              : best;
-        }
-      });
-
-      socket.emit("found-share-trip", best);
-    }
-  );
 };

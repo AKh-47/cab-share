@@ -1,95 +1,214 @@
 import express, { Request, Response, NextFunction } from "express";
+import { getDistance } from "../config/utils";
+import protect from "../middleware/protect";
+
 import Driver from "../models/Driver";
 import Trip from "../models/Trip";
 
 const router = express.Router();
 
-router.get("/fare", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { people, from, to, solo } = req.body;
+router.get(
+  "/fare",
+  protect("user"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { people, fromCoords, toCoords, solo } = req.body;
 
-    // Example from,to 41.43206,-81.38992
-    // Lattitude Langitude data
+      const fare = getFareFromCoords(fromCoords, toCoords, solo, people);
 
-    const fare = await getFareFromCoords(from, to, solo);
-
-    res.status(200).json({
-      error: null,
-      fare,
-    });
-  } catch (err) {
-    res.status(400).json({
-      error: err.message,
-      fare: null,
-    });
+      res.status(200).json({
+        error: null,
+        fare,
+      });
+    } catch (err) {
+      res.status(400).json({
+        error: err.message,
+        fare: null,
+      });
+    }
   }
-});
+);
 
-router.post("/", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { user, from, to, people } = req.body;
-    // people is the number of people
-    // remove user after implemeting auth (take user from there)
+router.post(
+  "/",
+  protect("user"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { fromCoords, toCoords, people, city } = req.body;
 
-    const city = await getCityFromCoords(from);
-    const fare = await getFareFromCoords(from, to);
+      //@ts-ignore
+      const { _id: userID } = req.user;
 
-    // I split up drivers by city so the list becomes smaller
+      // const city = await getCityFromCoords(from);
+      // API Needed Here
 
-    // Find a driver in the current city who is available and is not in a trip(solo)
-    // Also checks if his cab has enough capacity for the number of people
-    const drivers = await Driver.find({
-      city,
-      isAvailable: true,
-      inTrip: false,
-      "cab.capacity": { $gte: people },
-      // Checks if capacity is greater that number of people
-    });
+      const fare = getFareFromCoords(fromCoords, toCoords);
 
-    const driver = await getClosestDriver(drivers, from);
+      // I split up drivers by city so the list becomes smaller
 
-    driver.inTrip = true;
-    await driver.save();
+      // Find a driver in the current city who is available and is not in a trip(solo)
+      // Also checks if his cab has enough capacity for the number of people
 
-    const trip = await new Trip({
-      driver,
-      customers: [{ user, from, to, fare }],
-      solo: true,
-    }).save();
+      const drivers = await Driver.find({
+        city,
+        isAvailable: true,
+        inTrip: false,
+        "cab.capacity": { $gte: people },
+        // Checks if capacity is greater that number of people
+      });
 
-    res.status(200).json({
-      trip,
-      error: null,
-    });
-  } catch (err) {
-    res.status(400).json({
-      trip: null,
-      error: err.message,
-    });
+      if (drivers.length === 0)
+        return res.status(200).json({ message: "Driver not Found" });
+
+      const driver = getClosestDriver(drivers, fromCoords);
+
+      driver.inTrip = true;
+      await driver.save();
+
+      const trip = await new Trip({
+        driver,
+        customers: [
+          {
+            userID,
+            from: JSON.stringify(fromCoords),
+            to: JSON.stringify(toCoords),
+            fare,
+          },
+        ],
+        solo: true,
+      }).save();
+
+      res.status(200).json({
+        trip,
+        error: null,
+      });
+    } catch (err) {
+      res.status(400).json({
+        trip: null,
+        error: err.message,
+      });
+    }
   }
-});
+);
 
-router.post("/share", (req: Request, res: Response, next: NextFunction) => {
-  // Implemented with sockets
-});
+router.post(
+  "/share",
+  protect("user"),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { fromCoords, toCoords, people, city } = req.body;
 
-router.post("/end", (req: Request, res: Response, next: NextFunction) => {
-  // End a trip
-});
+      //@ts-ignore
+      const { _id: userID } = req.user;
 
-const getCityFromCoords = (coords: string) => {
-  // API Call
-};
+      const trips = await Trip.find({
+        solo: false,
+        hasEnded: false,
+        "driver.city": city,
+      }).populate("driver", "cab currentLocation");
 
-const getClosestDriver = (drivers: any[], coords: string) => {
+      const fare = getFareFromCoords(fromCoords, toCoords, false);
+
+      if (trips.length === 0) {
+        const drivers = await Driver.find({
+          city,
+          isAvailable: true,
+          inTrip: false,
+          "cab.capacity": { $gte: people },
+        });
+
+        if (drivers.length === 0)
+          return res.status(300).json({ message: "Driver not Found" });
+
+        let driver = getClosestDriver(drivers, fromCoords);
+        driver = await driver.findById(driver._id);
+        driver.inTrip = true;
+        driver = await driver.save();
+
+        const trip = await new Trip({
+          driver,
+          customers: [
+            {
+              user: userID,
+              from: JSON.stringify(fromCoords),
+              to: JSON.stringify(toCoords),
+              fare,
+            },
+          ],
+          solo: false,
+        }).save();
+
+        return res.status(200).json({
+          trip,
+          error: null,
+        });
+      } else {
+        let best: number | null;
+        let bestIndex = 0;
+        trips.map((trip: any, index: number) => {
+          if (!(trip.driver.cab.capcity - trip.customers.length >= people))
+            return;
+
+          let distBetweenEndpoints: number | null = null;
+
+          trip.customers.forEach((customer: any) => {
+            const dist = getDistance(customer.to, toCoords);
+            if (!distBetweenEndpoints || dist > distBetweenEndpoints) {
+              distBetweenEndpoints = dist;
+            }
+          });
+
+          const distBetweenDriver = getDistance(
+            trip.driver.currentLocation,
+            fromCoords
+          );
+
+          //@ts-ignore
+          if (!best || best < distBetweenDriver + distBetweenEndpoints) {
+            //@ts-ignore
+            best = distBetweenDriver + distBetweenEndpoints;
+            bestIndex = index;
+          }
+        });
+
+        let tripID = trips[bestIndex]._id;
+
+        const newCustomer = {
+          user: userID,
+          from: JSON.stringify(fromCoords),
+          to: JSON.stringify(toCoords),
+          fare,
+        };
+
+        //@ts-ignore
+        const trip = await Trip.findByIdAndUpdate(tripID, {
+          $push: {
+            customers: newCustomer,
+          },
+        });
+
+        console.log(trip);
+
+        return res.status(200).json({
+          trip,
+          error: null,
+        });
+      }
+    } catch (err) {
+      res.status(400).json({
+        trip: null,
+        error: err.message,
+      });
+    }
+  }
+);
+
+const getClosestDriver = (drivers: any[], coords: any) => {
   let lowest = 0;
   let driverIndex = 0;
 
   drivers.forEach((candidate: any, index) => {
-    const distance = getDistanceBetweenCoords(
-      candidate.currentLocation,
-      coords
-    );
+    const distance = getDistance(candidate.currentLocation, coords);
     if (distance < lowest) {
       lowest = distance;
       driverIndex = index;
@@ -99,18 +218,16 @@ const getClosestDriver = (drivers: any[], coords: string) => {
   return drivers[driverIndex];
 };
 
-const getDistanceBetweenCoords: (from: string, to: string) => number = (
-  from,
-  to
-) => {
-  // API call
-  return 0;
-};
+const getFareFromCoords = (from: any, to: any, solo = true, people = 1) => {
+  const distance = getDistance(from, to);
 
-const getFareFromCoords = (from: string, to: string, solo = true) => {
-  const distance = getDistanceBetweenCoords(from, to);
-
-  return 10;
+  if (solo) {
+    return distance > 50 ? 30 : 15;
+  } else {
+    if (people === 2) return distance > 50 ? 30 : 15;
+    if (people === 3) return distance > 50 ? 35 : 18;
+    else return distance > 50 ? 25 : 10;
+  }
 };
 
 export default router;
