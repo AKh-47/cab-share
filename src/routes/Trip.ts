@@ -104,8 +104,10 @@ router.post(
       const trips = await Trip.find({
         solo: false,
         hasEnded: false,
-        "driver.city": city,
+        // "driver.city": city,
       }).populate("driver", "cab currentLocation");
+
+      console.log({ trips });
 
       const fare = getFareFromCoords(fromCoords, toCoords, false);
 
@@ -121,9 +123,11 @@ router.post(
           return res.status(300).json({ message: "Driver not Found" });
 
         let driver = getClosestDriver(drivers, fromCoords);
-        driver = await driver.findById(driver._id);
+        driver = await Driver.findById(driver._id);
         driver.inTrip = true;
         driver = await driver.save();
+
+        console.log({ driverFromSolo: driver });
 
         const trip = await new Trip({
           driver,
@@ -187,7 +191,7 @@ router.post(
           },
         });
 
-        console.log(trip);
+        console.log({ tripOutside: trip });
 
         return res.status(200).json({
           trip,
